@@ -92,7 +92,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         Log.d(TAG, "onCreate()");
 
         setContentView(R.layout.activity_main);
-        this.surfaceView = findViewById(R.id.surfaceview);
+        this.surfaceView = this.findViewById(R.id.surfaceview);
         this.displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
 
         // Set up renderer.
@@ -230,7 +230,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
     {
         Log.d(TAG, "onSurfaceCreated()");
 
-        GLES20.glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        //GLES20.glClearColor(1f, 0.1f, 0.1f, 1.0f);
 
         // Prepare the rendering objects. This involves reading shaders, so may throw an IOException.
         try {
@@ -348,6 +348,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
                 case TRACKING:
                     this.augmentedImageRenderer.draw(
                             viewmtx, projmtx, augmentedImage, centerAnchor, colorCorrectionRgba);
+                    //this.backgroundRenderer.draw(100, 100, 1, 1);
                     break;
                 default:
                     break;
