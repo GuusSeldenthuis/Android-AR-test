@@ -92,24 +92,24 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         Log.d(TAG, "onCreate()");
 
         setContentView(R.layout.activity_main);
-        surfaceView = findViewById(R.id.surfaceview);
-        displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
+        this.surfaceView = findViewById(R.id.surfaceview);
+        this.displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
 
         // Set up renderer.
-        surfaceView.setPreserveEGLContextOnPause(true);
-        surfaceView.setEGLContextClientVersion(2);
-        surfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
-        surfaceView.setRenderer(this);
-        surfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-        surfaceView.setWillNotDraw(false);
+        this.surfaceView.setPreserveEGLContextOnPause(true);
+        this.surfaceView.setEGLContextClientVersion(2);
+        this.surfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
+        this.surfaceView.setRenderer(this);
+        this.surfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        this.surfaceView.setWillNotDraw(false);
 
-        fitToScanView = findViewById(R.id.image_view_fit_to_scan);
-        glideRequestManager = Glide.with(this);
-        glideRequestManager
+        this.fitToScanView = findViewById(R.id.image_view_fit_to_scan);
+        this.glideRequestManager = Glide.with(this);
+        this.glideRequestManager
                 .load(Uri.parse("file:///android_asset/fit_to_scan.png"))
-                .into(fitToScanView);
+                .into(this.fitToScanView);
 
-        installRequested = false;
+        this.installRequested = false;
     }
 
     @Override
