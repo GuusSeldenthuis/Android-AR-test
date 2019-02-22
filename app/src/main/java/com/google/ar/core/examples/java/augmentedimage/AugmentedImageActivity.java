@@ -16,8 +16,6 @@
 
 package com.google.ar.core.examples.java.augmentedimage;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -82,11 +80,6 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
     private final BackgroundRenderer backgroundRenderer = new BackgroundRenderer();
     private final AugmentedImageRenderer augmentedImageRenderer = new AugmentedImageRenderer();
 
-    private boolean shouldConfigureSession = false;
-
-    // Augmented image configuration and rendering.
-    // Load a single image (true) or a pre-generated image database (false).
-    private final boolean useSingleImage = false;
     // Augmented image and its associated center pose anchor, keyed by index of the augmented image in
     // the
     // database.
@@ -125,7 +118,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         super.onResume();
         Log.d(TAG, "onResume()");
 
-        if (session == null) {
+        if (this.session == null) {
             Exception exception = null;
             String message = null;
             try {
@@ -144,7 +137,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
                     return;
                 }
 
-                session = new Session(/* context = */ this);
+                this.session = new Session(/* context = */ this);
             } catch (UnavailableArcoreNotInstalledException
                     | UnavailableUserDeclinedInstallationException e) {
                 message = "Please install ARCore";
@@ -166,29 +159,28 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
                 return;
             }
 
-            shouldConfigureSession = true;
-        }
-
-        if (shouldConfigureSession) {
-            configureSession();
-            shouldConfigureSession = false;
+            Config config = new Config(session);
+            if (!setupAugmentedImageDatabase(config)) {
+                messageSnackbarHelper.showError(this, "Could not setup augmented image database");
+            }
+            this.session.configure(config);
         }
 
         // Note that order matters - see the note in onPause(), the reverse applies here.
         try {
-            session.resume();
+            this.session.resume();
         } catch (CameraNotAvailableException e) {
             // In some cases (such as another camera app launching) the camera may be given to
             // a different app instead. Handle this properly by showing a message and recreate the
             // session at the next iteration.
-            messageSnackbarHelper.showError(this, "Camera not available. Please restart the app.");
-            session = null;
+            this.messageSnackbarHelper.showError(this, "Camera not available. Please restart the app.");
+            this.session = null;
             return;
         }
-        surfaceView.onResume();
-        displayRotationHelper.onResume();
+        this.surfaceView.onResume();
+        this.displayRotationHelper.onResume();
 
-        fitToScanView.setVisibility(View.VISIBLE);
+        this.fitToScanView.setVisibility(View.VISIBLE);
     }
 
     @Override
@@ -197,13 +189,13 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         super.onPause();
         Log.d(TAG, "onPause()");
 
-        if (session != null) {
+        if (this.session != null) {
             // Note that the order matters - GLSurfaceView is paused first so that it does not try
             // to query the session. If Session is paused before GLSurfaceView, GLSurfaceView may
             // still call session.update() and get a SessionPausedException.
-            displayRotationHelper.onPause();
-            surfaceView.onPause();
-            session.pause();
+            this.displayRotationHelper.onPause();
+            this.surfaceView.onPause();
+            this.session.pause();
         }
     }
 
@@ -220,7 +212,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
                 // Permission denied with checking "Do not ask again".
                 CameraPermissionHelper.launchPermissionSettings(this);
             }
-            finish();
+            this.finish();
         }
     }
 
@@ -243,8 +235,8 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         // Prepare the rendering objects. This involves reading shaders, so may throw an IOException.
         try {
             // Create the texture and pass it to ARCore session to be filled during update().
-            backgroundRenderer.createOnGlThread(/*context=*/ this);
-            augmentedImageRenderer.createOnGlThread(/*context=*/ this);
+            this.backgroundRenderer.createOnGlThread(/*context=*/ this);
+            this.augmentedImageRenderer.createOnGlThread(/*context=*/ this);
         } catch (IOException e) {
             Log.e(TAG, "Failed to read an asset file", e);
         }
@@ -255,7 +247,7 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
     {
         Log.d(TAG, "onSurfaceChanged()");
 
-        displayRotationHelper.onSurfaceChanged(width, height);
+        this.displayRotationHelper.onSurfaceChanged(width, height);
         GLES20.glViewport(0, 0, width, height);
     }
 
@@ -265,24 +257,25 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         // Clear screen to notify driver it should not load any pixels from previous frame.
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 
-        if (session == null) {
+        if (this.session == null) {
+            Log.d(TAG, "onDrawFrame: session is null.");
             return;
         }
         // Notify ARCore session that the view size changed so that the perspective matrix and
         // the video background can be properly adjusted.
-        displayRotationHelper.updateSessionIfNeeded(session);
+        this.displayRotationHelper.updateSessionIfNeeded(session);
 
         try {
-            session.setCameraTextureName(backgroundRenderer.getTextureId());
+            this.session.setCameraTextureName(this.backgroundRenderer.getTextureId());
 
             // Obtain the current frame from ARSession. When the configuration is set to
             // UpdateMode.BLOCKING (it is by default), this will throttle the rendering to the
             // camera framerate.
-            Frame frame = session.update();
+            Frame frame = this.session.update();
             Camera camera = frame.getCamera();
 
             // If frame is ready, render camera preview image to the GL surface.
-            backgroundRenderer.draw(frame);
+            this.backgroundRenderer.draw(frame);
 
             // If not tracking, don't draw 3d objects.
             if (camera.getTrackingState() == TrackingState.PAUSED) {
@@ -302,22 +295,11 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
             frame.getLightEstimate().getColorCorrection(colorCorrectionRgba, 0);
 
             // Visualize augmented images.
-            drawAugmentedImages(frame, projmtx, viewmtx, colorCorrectionRgba);
+            this.drawAugmentedImages(frame, projmtx, viewmtx, colorCorrectionRgba);
         } catch (Throwable t) {
             // Avoid crashing the application due to unhandled exceptions.
             Log.e(TAG, "Exception on the OpenGL thread", t);
         }
-    }
-
-    private void configureSession()
-    {
-        Log.d(TAG, "configureSession()");
-
-        Config config = new Config(session);
-        if (!setupAugmentedImageDatabase(config)) {
-            messageSnackbarHelper.showError(this, "Could not setup augmented image database");
-        }
-        session.configure(config);
     }
 
     private void drawAugmentedImages(
@@ -332,25 +314,25 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
                 case PAUSED:
                     // When an image is in PAUSED state, but the camera is not PAUSED, it has been detected,
                     // but not yet tracked.
-                    String text = String.format("Detected Image %d", augmentedImage.getIndex());
-                    messageSnackbarHelper.showMessage(this, text);
+                    String text = String.format("Detected Image %s.", augmentedImage.getName());
+                    this.messageSnackbarHelper.showMessage(this, text);
                     break;
 
                 case TRACKING:
                     // Have to switch to UI Thread to update View.
                     this.runOnUiThread(
-                            () -> fitToScanView.setVisibility(View.GONE));
+                            () -> this.fitToScanView.setVisibility(View.GONE));
 
                     // Create a new anchor for newly found images.
-                    if (!augmentedImageMap.containsKey(augmentedImage.getIndex())) {
+                    if (!this.augmentedImageMap.containsKey(augmentedImage.getIndex())) {
                         Anchor centerPoseAnchor = augmentedImage.createAnchor(augmentedImage.getCenterPose());
-                        augmentedImageMap.put(
+                        this.augmentedImageMap.put(
                                 augmentedImage.getIndex(), Pair.create(augmentedImage, centerPoseAnchor));
                     }
                     break;
 
                 case STOPPED:
-                    augmentedImageMap.remove(augmentedImage.getIndex());
+                    this.augmentedImageMap.remove(augmentedImage.getIndex());
                     break;
 
                 default:
@@ -359,12 +341,12 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         }
 
         // Draw all images in augmentedImageMap
-        for (Pair<AugmentedImage, Anchor> pair : augmentedImageMap.values()) {
+        for (Pair<AugmentedImage, Anchor> pair : this.augmentedImageMap.values()) {
             AugmentedImage augmentedImage = pair.first;
-            Anchor centerAnchor = augmentedImageMap.get(augmentedImage.getIndex()).second;
+            Anchor centerAnchor = this.augmentedImageMap.get(augmentedImage.getIndex()).second;
             switch (augmentedImage.getTrackingState()) {
                 case TRACKING:
-                    augmentedImageRenderer.draw(
+                    this.augmentedImageRenderer.draw(
                             viewmtx, projmtx, augmentedImage, centerAnchor, colorCorrectionRgba);
                     break;
                 default:
@@ -378,47 +360,17 @@ public class AugmentedImageActivity extends AppCompatActivity implements GLSurfa
         Log.d(TAG, "setupAugmentedImageDatabase()");
         AugmentedImageDatabase augmentedImageDatabase;
 
-        // There are two ways to configure an AugmentedImageDatabase:
-        // 1. Add Bitmap to DB directly
-        // 2. Load a pre-built AugmentedImageDatabase
-        // Option 2) has
-        // * shorter setup time
-        // * doesn't require images to be packaged in apk.
-        if (useSingleImage) {
-            Bitmap augmentedImageBitmap = loadAugmentedImageBitmap();
-            if (augmentedImageBitmap == null) {
-                return false;
-            }
-
-            augmentedImageDatabase = new AugmentedImageDatabase(session);
-            augmentedImageDatabase.addImage("image_name", augmentedImageBitmap);
-            // If the physical size of the image is known, you can instead use:
-            //     augmentedImageDatabase.addImage("image_name", augmentedImageBitmap, widthInMeters);
-            // This will improve the initial detection speed. ARCore will still actively estimate the
-            // physical size of the image as it is viewed from multiple viewpoints.
-        } else {
-            // This is an alternative way to initialize an AugmentedImageDatabase instance,
-            // load a pre-existing augmented image database.
-            try (InputStream is = getAssets().open("sample_database.imgdb")) {
-                augmentedImageDatabase = AugmentedImageDatabase.deserialize(session, is);
-            } catch (IOException e) {
-                Log.e(TAG, "IO exception loading augmented image database.", e);
-                return false;
-            }
+        // This is an alternative way to initialize an AugmentedImageDatabase instance,
+        // load a pre-existing augmented image database.
+        try (InputStream is = getAssets().open("testguus.imgdb")) {
+            augmentedImageDatabase = AugmentedImageDatabase.deserialize(this.session, is);
+            Log.d(TAG, String.format("setupAugmentedImageDatabase: %s images loaded!", augmentedImageDatabase.getNumImages()));
+        } catch (IOException e) {
+            Log.e(TAG, "IO exception loading augmented image database.", e);
+            return false;
         }
 
         config.setAugmentedImageDatabase(augmentedImageDatabase);
         return true;
-    }
-
-    private Bitmap loadAugmentedImageBitmap()
-    {
-        Log.d(TAG, "loadAugmentedImageBitmap()");
-        try (InputStream is = getAssets().open("default.jpg")) {
-            return BitmapFactory.decodeStream(is);
-        } catch (IOException e) {
-            Log.e(TAG, "IO exception loading augmented image bitmap.", e);
-        }
-        return null;
     }
 }
